@@ -12,7 +12,31 @@
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
+    "configuration": [
+      {
+        "title": "Chad GPT",
+        "properties": {
+          "chadgpt.apiKey": {
+            "type": "string",
+            "default": "",
+            "description": "OpenAI API Key"
+          }
+        }
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "chadgpt.customSection",
+          "name": "Chad GPT"
+        }
+      ]
+    },
     "commands": [
+      {
+        "command": "chadgpt.setApiKey",
+        "title": "Set OpenAI API Key"
+      },
       {
         "command": "chadgpt.askChatGPT",
         "title": "Ask ChatGPT"
