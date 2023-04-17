@@ -11,6 +11,10 @@
   ],
   "activationEvents": [],
   "main": "./dist/extension.js",
+  "icon": "icon.png",
+  "repository": {
+    "url": "https://github.com/savager/ChadGPT"
+  },
   "contributes": {
     "configuration": [
       {
@@ -20,6 +24,11 @@
             "type": "string",
             "default": "",
             "description": "OpenAI API Key"
+          },
+          "chadgpt.model": {
+            "type": "string",
+            "default": "",
+            "description": "OpenAI AI Model"
           }
         }
       }
@@ -33,6 +42,10 @@
       ]
     },
     "commands": [
+      {
+        "command": "chadgpt.setAIModel",
+        "title": "Set OpenAI AI Model (default is 'gpt-3.5-turbo')"
+      },
       {
         "command": "chadgpt.setApiKey",
         "title": "Set OpenAI API Key"
