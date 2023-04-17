@@ -1,0 +1,13 @@
+# Ignore everything
+**
+# Include necessary files and folders
+!src/**
+!dist/**
+!node_modules/**
+!package.json
+!pnpm-lock.yaml
+!README.md
+!LICENSE
+!CHANGELOG.md
+!icon.png
+!pnpm-workspace.yaml

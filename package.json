@@ -3,6 +3,7 @@
   "displayName": "ChadGPT",
   "description": "File aware ChatGPT integration",
   "version": "0.0.1",
+  "publisher": "ChadGPT",
   "engines": {
     "vscode": "^1.77.0"
   },
