@@ -2,7 +2,7 @@
 
 **Dead simple** Open AI VSCode integration with progress bar and code inclusion.
 
-![Demo](./src/ChadGPT.gif)
+![Demo](https://raw.githubusercontent.com/savager/ChadGPT/main/src/ChadGPT.gif)
 
 ## Commands
 
