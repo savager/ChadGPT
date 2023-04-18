@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/semi */
 /* eslint-disable @typescript-eslint/naming-convention */
+import MarkdownIt = require('markdown-it'); 
 import * as vscode from 'vscode'
 import { Configuration, OpenAIApi } from 'openai'
 import { TextEditor } from 'vscode'
@@ -86,6 +87,29 @@ function isValidApiKey(apiKey: string | undefined): boolean {
   return apiKeyPattern.test(apiKey)
 }
 
+function showResponse(prompt: string, res: string) {
+    const panel = vscode.window.createWebviewPanel(
+      'markdownPanel', // Identifies the type of the webview
+      'ChatGPT Results', // Title of the panel displayed to the user
+      vscode.ViewColumn.Two, // Editor column to show the new webview panel
+      {
+        enableScripts: true
+      }
+      );
+      
+    const md = new MarkdownIt();
+    const rendered = md.render(res)
+
+    panel.webview.html = `
+      <body>
+        <br/>
+        <div><b>Prompt:</b></div>
+        <h3>${prompt}</h3>
+        <div><b>Response:</b>${rendered}</div>
+      </body>
+    `;
+}
+
 function hasSelection(editor: TextEditor): Boolean {
   if (editor) {
     const selections = editor.selections
@@ -110,9 +134,7 @@ function hasSelection(editor: TextEditor): Boolean {
 
 export async function activate(context: vscode.ExtensionContext) {
 
-  const outputChannel = vscode.window.createOutputChannel('ChadGPT')
-
-  setModel(defaultModel)
+  // setModel(defaultModel)
 
   const key : string | undefined = await getApiKey()
   const isValid = isValidApiKey(key)
@@ -135,11 +157,34 @@ export async function activate(context: vscode.ExtensionContext) {
       if (!userInput) {
         return
       }
+
+      try {
+    
+        const prompt = `${userInput}`
+        const response = await fetchResponse(prompt)
+        showResponse(prompt, response)
+
+      } catch (error: any) {
+        vscode.window.showErrorMessage(`Error: ${error.message}`)
+      }
+    })
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('chadgpt.askChatGPTWithCode', async () => {
+      
+      const userInput = await vscode.window.showInputBox({
+        placeHolder: 'Type your question here'
+      })
+      
+      if (!userInput) {
+        return
+      }
       
       let prompt: string = ''
       const editor = vscode.window.activeTextEditor
       
-      if (typeof editor === 'undefined' || editor.document?.uri?.path.includes('extension-output')) {
+      if (typeof editor === 'undefined') {
         prompt = `${userInput}`
       } else {
         const selection = hasSelection(editor)
@@ -163,9 +208,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
       try {
         const response = await fetchResponse(prompt)
-        outputChannel.appendLine(response)
-        outputChannel.appendLine('\n')
-        outputChannel.show()
+        showResponse(prompt, response)
+
       } catch (error: any) {
         vscode.window.showErrorMessage(`Error: ${error.message}`)
       }

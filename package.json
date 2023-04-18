@@ -2,7 +2,7 @@
   "name": "chadgpt",
   "displayName": "ChadGPT",
   "description": "File aware ChatGPT integration",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "publisher": "ChadGPT",
   "engines": {
     "vscode": "^1.77.0"
@@ -54,6 +54,10 @@
       {
         "command": "chadgpt.askChatGPT",
         "title": "Ask ChatGPT"
+      },
+      {
+        "command": "chadgpt.askChatGPTWithCode",
+        "title": "Ask ChatGPT w/Code"
       }
     ]
   },
@@ -70,6 +74,7 @@
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",
+    "@types/markdown-it": "^12.2.3",
     "@types/mocha": "^10.0.1",
     "@types/node": "16.x",
     "@types/vscode": "^1.77.0",
@@ -85,6 +90,7 @@
     "webpack-cli": "^5.0.1"
   },
   "dependencies": {
+    "markdown-it": "^13.0.1",
     "openai": "^3.2.1"
   }
 }
