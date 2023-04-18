@@ -7,6 +7,8 @@ import { TextEditor } from 'vscode'
 
 let openai: any
 let defaultModel: string = 'gpt-3.5-turbo'
+let apiKey: string | undefined = undefined;
+let model: string | undefined = undefined;
 
 async function setApiKey(apiKey: string): Promise<void> {
   if (!isValidApiKey(apiKey)) {
@@ -53,11 +55,12 @@ async function fetchResponse(prompt: string): Promise<string> {
 
       progress.report({ increment: 0 })
 
-      const apiKey = await getApiKey()
-      const model = await getModel()
+      if (!apiKey || !model) {
+        throw new Error('API Key or model not set.')
+      }
 
-      if (!apiKey) {
-        throw new Error('API Key not set.')
+      if (!isValidApiKey(apiKey)) {
+        throw new Error('API Key not valid.')
       }
     
       const response = await openai.createChatCompletion({
@@ -87,134 +90,143 @@ function isValidApiKey(apiKey: string | undefined): boolean {
   return apiKeyPattern.test(apiKey)
 }
 
-function showResponse(prompt: string, res: string) {
-    const panel = vscode.window.createWebviewPanel(
-      'markdownPanel', // Identifies the type of the webview
-      'ChatGPT Results', // Title of the panel displayed to the user
-      vscode.ViewColumn.Two, // Editor column to show the new webview panel
-      {
-        enableScripts: true
-      }
-      );
-      
-    const md = new MarkdownIt();
-    const rendered = md.render(res)
+function showResponse(
+  prompt: string,
+  activeFileContent: string | undefined,
+  selectedText: string | undefined,
+  language: string | undefined,
+  res: string
+) {
+  const panel = vscode.window.createWebviewPanel(
+    "markdownPanel",
+    "ChatGPT Results",
+    vscode.ViewColumn.Two,
+    { enableScripts: true }
+  );
 
-    panel.webview.html = `
+  const md = new MarkdownIt();
+  const rendered = md.render(res);
+
+  const codeContent = selectedText || activeFileContent;
+  const langClass = language ? ` class="language-${language}"` : "";
+  const codeBlock = codeContent
+    ? `</div><pre><code${langClass}>${codeContent}</code></pre>`
+    : "";
+
+  panel.webview.html = `
       <body>
-        <br/>
-        <div><b>Prompt:</b></div>
-        <h3>${prompt}</h3>
-        <div><b>Response:</b>${rendered}</div>
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/go.min.js"></script>
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/base16/zenburn.min.css">
+          <br/>
+          <div><b>Prompt:</b></div><p>${prompt}</p>${codeBlock}
+          <div><b>Response:</b>${rendered}</div>
+          <script>hljs.highlightAll();</script>
       </body>
-    `;
+  `;
 }
 
 function hasSelection(editor: TextEditor): Boolean {
   if (editor) {
-    const selections = editor.selections
-    let hasHighlightedText = false
+    const selections = editor.selections;
+    return selections.some(selection => !selection.isEmpty);
+  }
+  return false;
+}
 
-    selections.forEach(selection => {
-      if (!selection.isEmpty) {
-        hasHighlightedText = true
-      }
-    })
-
-    if (hasHighlightedText) {
-      vscode.window.showInformationMessage('Highlighted text in editor will be included in query.')
-      return true
-    } else {
-      return false
-    }
+function getLanguageId(): string | undefined {
+  const activeEditor = vscode.window.activeTextEditor;
+  if (activeEditor) {
+      const languageId = activeEditor.document.languageId;
+      return languageId;
   } else {
-    return false
+      return undefined;
+  }
+}
+
+async function askChatGPT() {
+      
+  const userInput = await vscode.window.showInputBox({
+    placeHolder: 'Type your question here'
+  })
+  
+  if (!userInput) {
+    return
+  }
+
+  try {
+
+    const prompt = `${userInput}`
+    const response = await fetchResponse(prompt)
+    showResponse(userInput, undefined, undefined, undefined, response)
+  } catch (error: any) {
+    vscode.window.showErrorMessage(`Error: ${error.message}`)
+  }
+}
+
+async function askChatGPTWithCode(): Promise<void> {
+  const userInput = await vscode.window.showInputBox({ placeHolder: 'Type your question here' });
+
+  if (!userInput) { return; }
+
+  let prompt: string;
+  let language: string | undefined;
+  let activeFileContent: string | undefined;
+  let selectedText: string | undefined = '';
+  const editor = vscode.window.activeTextEditor;
+
+  if (!editor) {
+      prompt = userInput;
+  } else {
+      const selection = hasSelection(editor);
+
+      if (selection) {
+          const selections = editor.selections;
+          const document = editor.document;
+
+          selections.forEach((selection) => {
+              if (!selection.isEmpty) {
+                  selectedText += document.getText(selection);
+              }
+          });
+          prompt = `${userInput}\n${selectedText}`;
+      } else {
+          activeFileContent = editor.document.getText() || '';
+          prompt = `${userInput}\n${activeFileContent}`;
+          language = getLanguageId();
+      }
+  }
+
+  try {
+      const response = await fetchResponse(prompt+'/nBe sure to put any responses that contain code in markdown code blocks');
+      showResponse(userInput, activeFileContent, selectedText, language, response);
+  } catch (error: any) {
+      vscode.window.showErrorMessage(`Error: ${error.message}`);
   }
 }
 
 export async function activate(context: vscode.ExtensionContext) {
 
-  // setModel(defaultModel)
+  apiKey = await getApiKey();
+  model = await getModel();
+  if (!model) {
+    model = defaultModel;
+  }
 
-  const key : string | undefined = await getApiKey()
-  const isValid = isValidApiKey(key)
-
-  if (typeof key !== 'undefined' && isValid) {
+  if (apiKey && isValidApiKey(apiKey)) {
     openai = new OpenAIApi(
       new Configuration({
-        apiKey: key
+        apiKey: apiKey
       })
     )
   }
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('chadgpt.askChatGPT', async () => {
-      
-      const userInput = await vscode.window.showInputBox({
-        placeHolder: 'Type your question here'
-      })
-      
-      if (!userInput) {
-        return
-      }
-
-      try {
-    
-        const prompt = `${userInput}`
-        const response = await fetchResponse(prompt)
-        showResponse(prompt, response)
-
-      } catch (error: any) {
-        vscode.window.showErrorMessage(`Error: ${error.message}`)
-      }
-    })
-  )
+    vscode.commands.registerCommand('chadgpt.askChatGPT', askChatGPT ))
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('chadgpt.askChatGPTWithCode', async () => {
-      
-      const userInput = await vscode.window.showInputBox({
-        placeHolder: 'Type your question here'
-      })
-      
-      if (!userInput) {
-        return
-      }
-      
-      let prompt: string = ''
-      const editor = vscode.window.activeTextEditor
-      
-      if (typeof editor === 'undefined') {
-        prompt = `${userInput}`
-      } else {
-        const selection = hasSelection(editor)
-
-        if (selection) {
-          prompt = `${userInput}\n`
-          const selections = editor.selections
-          let document = editor.document
-
-          selections.forEach(selection => {
-            if (!selection.isEmpty) {
-              const selectedText = document.getText(selection)
-              prompt = prompt + selectedText
-            }
-          })
-        } else {
-          const activeFileContent = editor.document.getText() || ''
-          prompt = `${userInput}\n${activeFileContent}`
-        }
-      }
-
-      try {
-        const response = await fetchResponse(prompt)
-        showResponse(prompt, response)
-
-      } catch (error: any) {
-        vscode.window.showErrorMessage(`Error: ${error.message}`)
-      }
-    })
-  )
+    vscode.commands.registerCommand('chadgpt.askChatGPTWithCode', askChatGPTWithCode ))
 
   context.subscriptions.push(
     vscode.commands.registerCommand('chadgpt.setApiKey', async () => {
