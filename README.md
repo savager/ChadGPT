@@ -4,6 +4,9 @@
 
 ![Demo](https://raw.githubusercontent.com/savager/ChadGPT/main/src/ChadGPT.gif)
 
+![Demo 2](https://raw.githubusercontent.com/savager/ChadGPT/main/src/ChadGPT2.gif)
+
+
 ## Commands
 
 Activate with Command + Shift + P
@@ -16,3 +19,6 @@ Activate with Command + Shift + P
 
 ## Modifiers
 * Change your model with Command + Shift + P "Set OpenAI AI Model" (Only tested with GPT 3.5 and 4)
+
+## Future Features
+* Select multiple files with explorer to include in query.
