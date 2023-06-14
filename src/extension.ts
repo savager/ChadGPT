@@ -82,7 +82,7 @@ async function fetchResponse(prompt: string): Promise<string> {
   )
 }
 
-function isValidApiKey(apiKey: string | undefined): boolean {
+export function isValidApiKey(apiKey: string | undefined): boolean {
   if (!apiKey) {
     return false
   }
@@ -208,53 +208,68 @@ async function askChatGPTWithCode(): Promise<void> {
 
 export async function activate(context: vscode.ExtensionContext) {
 
-  apiKey = await getApiKey();
-  model = await getModel();
-  if (!model) {
-    model = defaultModel;
+  async function updateConfig() {
+    apiKey = await getApiKey();
+    model = await getModel();
+
+    if (!model) {
+      model = defaultModel;
+    }
+
+    if (apiKey && isValidApiKey(apiKey)) {
+      openai = new OpenAIApi(
+        new Configuration({
+          apiKey: apiKey
+        })
+      );
+    }
   }
 
-  if (apiKey && isValidApiKey(apiKey)) {
-    openai = new OpenAIApi(
-      new Configuration({
-        apiKey: apiKey
-      })
-    )
-  }
+  // Initially update the configuration
+  await updateConfig();
+
+  // Add a listener for configuration change events
+  context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(async (e) => {
+    if (e.affectsConfiguration('chadgpt.apiKey') || e.affectsConfiguration('chadgpt.model')) {
+      await updateConfig();
+    }
+  }));
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('chadgpt.askChatGPT', askChatGPT ))
+    vscode.commands.registerCommand('chadgpt.askChatGPT', askChatGPT)
+  );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('chadgpt.askChatGPTWithCode', askChatGPTWithCode ))
+    vscode.commands.registerCommand('chadgpt.askChatGPTWithCode', askChatGPTWithCode)
+  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand('chadgpt.setApiKey', async () => {
       const apiKeyInput = await vscode.window.showInputBox({
         placeHolder: 'Enter your OpenAI API Key'
-      })
+      });
 
       if (!apiKeyInput) {
-        return
+        return;
       }
 
-      await setApiKey(apiKeyInput)
+      await setApiKey(apiKeyInput);
     })
-  )
+  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand('chadgpt.setAIModel', async () => {
       const modelName = await vscode.window.showInputBox({
         placeHolder: `gpt-3.5-turbo`
-      })
+      });
 
       if (!modelName) {
-        return
+        return;
       }
 
-      await setModel(modelName)
+      await setModel(modelName);
     })
-  )
+  );
 }
 
 export function deactivate() {}
